@@ -1,44 +1,41 @@
+import bcrypt
 from fastapi import FastAPI, HTTPException, status
-from passlib.context import CryptContext
+from uuid import uuid4
 
-from backend.models import UserRegister, UserInDB, UserOut
-from backend import database
+from . import database
+from .models import UserRegister, UserInDB, UserOut, UserLogin
 
 app = FastAPI()
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 @app.get("/health", status_code=status.HTTP_200_OK)
 async def health_check():
-    return {"status": "healthy"}
+    return {"status": "ok"}
 
 
 @app.post("/users/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-async def register_user(user_data: UserRegister):
-    # Check if email already exists
-    if database.get_user_by_email(user_data.email):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
+async def register_user(user: UserRegister):
+    if database.get_user_by_email(user.email):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
-    # Hash the password
-    hashed_password = pwd_context.hash(user_data.password)
-
-    # Create a new UserInDB object
+    hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     new_user_in_db = UserInDB(
-        email=user_data.email,
-        username=user_data.username,
+        id=uuid4(),
+        email=user.email,
         hashed_password=hashed_password
     )
+    database.create_user(new_user_in_db)
+    return UserOut(id=new_user_in_db.id, email=new_user_in_db.email)
 
-    # Store the user in the database
-    created_user = database.create_user(new_user_in_db)
 
-    # Return a UserOut object (without hashed password)
-    return UserOut(
-        id=created_user.id,
-        email=created_user.email,
-        username=created_user.username
-    )
+@app.post("/users/login", response_model=UserOut, status_code=status.HTTP_200_OK)
+async def login_user(user_login: UserLogin):
+    user_in_db = database.get_user_by_email(user_login.email)
+
+    if not user_in_db:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid credentials")
+
+    if not bcrypt.checkpw(user_login.password.encode('utf-8'), user_in_db.hashed_password.encode('utf-8')):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid credentials")
+
+    return UserOut(id=user_in_db.id, email=user_in_db.email)
