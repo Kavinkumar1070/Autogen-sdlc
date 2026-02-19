@@ -1,21 +1,23 @@
+from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field
-from uuid import UUID, uuid4
 
 
 class UserRegister(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8)
-    username: str
+    password: str = Field(min_length=8, max_length=64)
 
 
 class UserInDB(BaseModel):
-    id: UUID = Field(default_factory=uuid4)
+    id: UUID
     email: EmailStr
     hashed_password: str
-    username: str
 
 
 class UserOut(BaseModel):
     id: UUID
     email: EmailStr
-    username: str
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
