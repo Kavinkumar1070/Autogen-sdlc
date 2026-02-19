@@ -1,23 +1,29 @@
-from typing import Dict, Optional
+from datetime import datetime
+from typing import Dict, List, Optional
 from uuid import UUID
-from backend.models import UserInDB
 
+from .models import UserInDB, TaskInDB
 
 # In-memory database simulation
-_users_db: Dict[UUID, UserInDB] = {}
+users_db: Dict[UUID, UserInDB] = {}
+tasks_db: Dict[UUID, TaskInDB] = {}
 
 def create_user(user: UserInDB) -> UserInDB:
-    """Adds a new user to the in-memory database."""
-    _users_db[user.id] = user
+    users_db[user.id] = user
     return user
 
 def get_user_by_email(email: str) -> Optional[UserInDB]:
-    """Retrieves a user by email from the in-memory database."""
-    for user in _users_db.values():
+    for user in users_db.values():
         if user.email == email:
             return user
     return None
 
 def get_user_by_id(user_id: UUID) -> Optional[UserInDB]:
-    """Retrieves a user by ID from the in-memory database."""
-    return _users_db.get(user_id)
+    return users_db.get(user_id)
+
+def create_task(task: TaskInDB) -> TaskInDB:
+    tasks_db[task.id] = task
+    return task
+
+def get_tasks_by_user_id(user_id: UUID) -> List[TaskInDB]:
+    return [task for task in tasks_db.values() if task.user_id == user_id]
